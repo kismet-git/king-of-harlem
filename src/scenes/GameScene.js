@@ -1,8 +1,16 @@
 import Phaser from 'phaser';
 import FiendSpawner from '../systems/FiendSpawner';
+import Gem from '../entities/Gem';
+import HUD from '../ui/HUD';
+import {
+  playerStats,
+  resetPlayerStats,
+  addXP,
+} from '../systems/PlayerStats';
 
-const PLAYER_SPEED = 200;
 const WORLD_MULTIPLIER = 2; // Expand world to show camera follow
+const ATTACK_RANGE = 52;
+const GEM_XP_VALUE = 20;
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -10,6 +18,9 @@ export default class GameScene extends Phaser.Scene {
 
     this.player = null;
     this.fiendSpawner = null;
+    this.playerStats = playerStats;
+    this.gems = null;
+    this.hud = null;
     this.controls = {
       wasd: null,
       cursors: null,
@@ -22,6 +33,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    resetPlayerStats();
+
     const { width, height } = this.scale;
     const worldWidth = width * WORLD_MULTIPLIER;
     const worldHeight = height * WORLD_MULTIPLIER;
@@ -37,8 +50,18 @@ export default class GameScene extends Phaser.Scene {
       .setCollideWorldBounds(true);
     this.player.body.setAllowGravity(false);
 
-    this.fiendSpawner = new FiendSpawner(this, this.player);
+    this.gems = this.physics.add.group({ classType: Gem, runChildUpdate: false });
+    this.fiendSpawner = new FiendSpawner(this, this.player, this.playerStats, this.gems);
+    this.hud = new HUD(this, this.playerStats);
     this.bindInputs();
+
+    this.physics.add.overlap(
+      this.player,
+      this.gems,
+      this.handleGemPickup,
+      null,
+      this,
+    );
 
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
     this.cameras.main.startFollow(this.player);
@@ -66,11 +89,14 @@ export default class GameScene extends Phaser.Scene {
     this.clampToWorld();
 
     if (Phaser.Input.Keyboard.JustDown(this.controls.attack)) {
-      // Placeholder attack hook
-      console.log('Attack input triggered');
+      this.handleAttack();
     }
 
     this.fiendSpawner?.update(time, delta);
+    if (this.playerStats.health <= 0) {
+      this.handlePlayerDeath();
+    }
+    this.hud?.update();
   }
 
   createPlayerTexture() {
@@ -119,7 +145,7 @@ export default class GameScene extends Phaser.Scene {
     if (wasd?.down.isDown || cursors?.down.isDown) v.y += 1;
 
     if (v.lengthSq() > 0) {
-      v.normalize().scale(PLAYER_SPEED);
+      v.normalize().scale(this.playerStats.speed);
     }
 
     return v;
@@ -130,5 +156,41 @@ export default class GameScene extends Phaser.Scene {
     const clampedX = Phaser.Math.Clamp(this.player.x, bounds.x, bounds.right);
     const clampedY = Phaser.Math.Clamp(this.player.y, bounds.y, bounds.bottom);
     this.player.setPosition(clampedX, clampedY);
+  }
+
+  handleAttack() {
+    const fiends = this.fiendSpawner?.fiends || [];
+    for (const fiend of fiends) {
+      if (!fiend.active || !fiend.body) continue;
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        fiend.x,
+        fiend.y,
+      );
+      if (distance <= ATTACK_RANGE) {
+        fiend.die();
+        this.playerStats.fiendsKilled += 1;
+        break;
+      }
+    }
+  }
+
+  handleGemPickup(_, gem) {
+    if (!gem.active) return;
+    gem.destroy();
+    addXP(GEM_XP_VALUE);
+  }
+
+  handlePlayerDeath() {
+    this.playerStats.health = this.playerStats.maxHealth;
+    this.player.body.setVelocity(0, 0);
+
+    const bounds = this.physics.world.bounds;
+    const safeX = (bounds.x + bounds.right) / 2;
+    const safeY = (bounds.y + bounds.bottom) / 2;
+    this.player.setPosition(safeX, safeY);
+
+    this.cameras.main.flash(150, 255, 255, 255);
   }
 }

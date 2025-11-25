@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import Gem from './Gem';
+import { takeDamage } from '../systems/PlayerStats';
 
 const STATE = {
   WANDER: 'wander',
@@ -10,6 +12,7 @@ const CHASE_SPEED = 140;
 const DETECTION_RADIUS = 220;
 const WANDER_TIME_RANGE = { min: 700, max: 1600 };
 const CONTACT_COOLDOWN = 700;
+const CONTACT_DAMAGE = 6;
 
 function ensureFiendTexture(scene) {
   if (scene.textures.exists('fiend')) return;
@@ -28,32 +31,15 @@ function ensureFiendTexture(scene) {
   gfx.destroy();
 }
 
-function ensureGemTexture(scene) {
-  if (scene.textures.exists('gem')) return;
-
-  const gfx = scene.make.graphics({ x: 0, y: 0, add: false });
-  gfx.fillStyle(0x7effa5, 1);
-  gfx.beginPath();
-  gfx.moveTo(8, 0);
-  gfx.lineTo(16, 10);
-  gfx.lineTo(8, 20);
-  gfx.lineTo(0, 10);
-  gfx.closePath();
-  gfx.fillPath();
-  gfx.lineStyle(2, 0x295538, 1);
-  gfx.strokePath();
-  gfx.generateTexture('gem', 16, 20);
-  gfx.destroy();
-}
-
 export default class Fiend extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, player) {
+  constructor(scene, x, y, player, stats, gemGroup) {
     ensureFiendTexture(scene);
-    ensureGemTexture(scene);
 
     super(scene, x, y, 'fiend');
 
     this.player = player;
+    this.playerStats = stats;
+    this.gemGroup = gemGroup;
     this.state = STATE.WANDER;
     this.wanderVector = new Phaser.Math.Vector2();
     this.wanderTimer = 0;
@@ -131,7 +117,8 @@ export default class Fiend extends Phaser.Physics.Arcade.Sprite {
     if (this.contactTimer > 0) return;
 
     this.contactTimer = CONTACT_COOLDOWN;
-    console.log('Player takes contact damage from Fiend');
+    if (!this.playerStats) return;
+    takeDamage(CONTACT_DAMAGE);
   }
 
   die() {
@@ -141,17 +128,8 @@ export default class Fiend extends Phaser.Physics.Arcade.Sprite {
   }
 
   dropGem() {
-    const gem = this.scene.physics.add.sprite(this.x, this.y, 'gem');
-    gem.body.setAllowGravity(false);
-    gem.setDepth(0.5);
-
-    this.scene.tweens.add({
-      targets: gem,
-      y: gem.y - 6,
-      yoyo: true,
-      repeat: -1,
-      duration: 650,
-      ease: 'sine.inOut',
-    });
+    if (!this.gemGroup) return;
+    const gem = new Gem(this.scene, this.x, this.y);
+    this.gemGroup.add(gem);
   }
 }
