@@ -10,6 +10,7 @@ import {
 
 const WORLD_MULTIPLIER = 2; // Expand world to show camera follow
 const ATTACK_RANGE = 52;
+const ATTACK_ARC = Phaser.Math.DegToRad(80);
 const GEM_XP_VALUE = 20;
 
 export default class GameScene extends Phaser.Scene {
@@ -26,6 +27,7 @@ export default class GameScene extends Phaser.Scene {
       cursors: null,
       attack: null,
     };
+    this.facing = new Phaser.Math.Vector2(1, 0);
   }
 
   preload() {
@@ -51,7 +53,13 @@ export default class GameScene extends Phaser.Scene {
     this.player.body.setAllowGravity(false);
 
     this.gems = this.physics.add.group({ classType: Gem, runChildUpdate: false });
-    this.fiendSpawner = new FiendSpawner(this, this.player, this.playerStats, this.gems);
+    this.fiendSpawner = new FiendSpawner(
+      this,
+      this.player,
+      this.playerStats,
+      this.gems,
+      this.handleFiendDeath.bind(this),
+    );
     this.hud = new HUD(this, this.playerStats);
     this.bindInputs();
 
@@ -85,6 +93,9 @@ export default class GameScene extends Phaser.Scene {
     if (!this.player?.body) return;
 
     const velocity = this.readMovementInput();
+    if (velocity.lengthSq() > 0) {
+      this.facing.copy(velocity).normalize();
+    }
     this.player.body.setVelocity(velocity.x, velocity.y);
     this.clampToWorld();
 
@@ -160,19 +171,34 @@ export default class GameScene extends Phaser.Scene {
 
   handleAttack() {
     const fiends = this.fiendSpawner?.fiends || [];
+    let killsThisSwing = 0;
+
     for (const fiend of fiends) {
       if (!fiend.active || !fiend.body) continue;
-      const distance = Phaser.Math.Distance.Between(
+      const toFiend = new Phaser.Math.Vector2(
+        fiend.x - this.player.x,
+        fiend.y - this.player.y,
+      );
+      const distance = toFiend.length();
+      if (distance > ATTACK_RANGE) continue;
+
+      const angleToFiend = Phaser.Math.Angle.Between(
         this.player.x,
         this.player.y,
         fiend.x,
         fiend.y,
       );
-      if (distance <= ATTACK_RANGE) {
+      const facingAngle = this.facing.angle();
+      const angleDiff = Math.abs(Phaser.Math.Angle.Wrap(angleToFiend - facingAngle));
+
+      if (angleDiff <= ATTACK_ARC / 2) {
         fiend.die();
-        this.playerStats.fiendsKilled += 1;
-        break;
+        killsThisSwing += 1;
       }
+    }
+
+    if (killsThisSwing > 0) {
+      this.cameras.main.flash(80, 255, 255, 255, false);
     }
   }
 
@@ -180,6 +206,10 @@ export default class GameScene extends Phaser.Scene {
     if (!gem.active) return;
     gem.destroy();
     addXP(GEM_XP_VALUE);
+  }
+
+  handleFiendDeath() {
+    this.playerStats.fiendsKilled += 1;
   }
 
   handlePlayerDeath() {

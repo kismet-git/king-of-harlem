@@ -41,7 +41,7 @@ export default class HUD {
       color: '#c4c4c4',
     });
 
-    this.killsText = scene.add.text(120, 54, '', {
+    this.killsText = scene.add.text(96, 54, '', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '12px',
       color: '#c4c4c4',
@@ -78,7 +78,7 @@ export default class HUD {
     this.xpBar.width = BAR_WIDTH * xpRatio;
     this.xpText.setText(`XP ${Math.round(this.stats.xp)} / ${xpNeeded}`);
 
-    this.levelText.setText(`Lvl ${this.stats.level}`);
-    this.killsText.setText(`Fiends: ${this.stats.fiendsKilled}`);
+    this.levelText.setText(`Level ${this.stats.level}`);
+    this.killsText.setText(`Fiends Killed: ${this.stats.fiendsKilled}`);
   }
 }

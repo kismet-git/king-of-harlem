@@ -32,7 +32,7 @@ function ensureFiendTexture(scene) {
 }
 
 export default class Fiend extends Phaser.Physics.Arcade.Sprite {
-  constructor(scene, x, y, player, stats, gemGroup) {
+  constructor(scene, x, y, player, stats, gemGroup, onDeath) {
     ensureFiendTexture(scene);
 
     super(scene, x, y, 'fiend');
@@ -40,6 +40,7 @@ export default class Fiend extends Phaser.Physics.Arcade.Sprite {
     this.player = player;
     this.playerStats = stats;
     this.gemGroup = gemGroup;
+    this.onDeath = onDeath;
     this.state = STATE.WANDER;
     this.wanderVector = new Phaser.Math.Vector2();
     this.wanderTimer = 0;
@@ -124,6 +125,7 @@ export default class Fiend extends Phaser.Physics.Arcade.Sprite {
   die() {
     if (!this.active) return;
     this.dropGem();
+    if (this.onDeath) this.onDeath(this);
     this.destroy();
   }
 

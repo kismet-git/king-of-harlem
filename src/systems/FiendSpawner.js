@@ -5,11 +5,12 @@ const SPAWN_INTERVAL = 2200;
 const MAX_FIENDS = 10;
 
 export default class FiendSpawner {
-  constructor(scene, player, stats, gemGroup) {
+  constructor(scene, player, stats, gemGroup, onFiendDeath) {
     this.scene = scene;
     this.player = player;
     this.stats = stats;
     this.gemGroup = gemGroup;
+    this.onFiendDeath = onFiendDeath;
 
     this.fiends = [];
     this.spawnTimer = 0;
@@ -37,7 +38,15 @@ export default class FiendSpawner {
     const x = Phaser.Math.Between(bounds.x + 32, bounds.right - 32);
     const y = Phaser.Math.Between(bounds.y + 32, bounds.bottom - 32);
 
-    const fiend = new Fiend(this.scene, x, y, this.player, this.stats, this.gemGroup);
+    const fiend = new Fiend(
+      this.scene,
+      x,
+      y,
+      this.player,
+      this.stats,
+      this.gemGroup,
+      this.onFiendDeath,
+    );
     this.fiends.push(fiend);
   }
 }
