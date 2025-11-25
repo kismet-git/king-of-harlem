@@ -7,8 +7,8 @@ import {
   resetPlayerStats,
   addXP,
 } from '../systems/PlayerStats';
+import WorldMap from '../systems/WorldMap';
 
-const WORLD_MULTIPLIER = 2; // Expand world to show camera follow
 const ATTACK_RANGE = 52;
 const ATTACK_ARC = Phaser.Math.DegToRad(80);
 const GEM_XP_VALUE = 20;
@@ -37,18 +37,13 @@ export default class GameScene extends Phaser.Scene {
   create() {
     resetPlayerStats();
 
-    const { width, height } = this.scale;
-    const worldWidth = width * WORLD_MULTIPLIER;
-    const worldHeight = height * WORLD_MULTIPLIER;
+    // Build Harlem block layout and collision bodies.
+    this.worldMap = new WorldMap(this);
+    this.worldMap.build();
 
-    this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
-
-    this.add
-      .grid(0, 0, worldWidth, worldHeight, 64, 64, 0x111111, 1, 0x1c1c1c, 0.6)
-      .setOrigin(0, 0);
-
+    const spawnPoint = this.worldMap.getSpawnPoint();
     this.player = this.physics.add
-      .sprite(worldWidth / 2, worldHeight / 2, 'player')
+      .sprite(spawnPoint.x, spawnPoint.y, 'player')
       .setCollideWorldBounds(true);
     this.player.body.setAllowGravity(false);
 
@@ -58,6 +53,7 @@ export default class GameScene extends Phaser.Scene {
       this.player,
       this.playerStats,
       this.gems,
+      this.worldMap,
       this.handleFiendDeath.bind(this),
     );
     this.hud = new HUD(this, this.playerStats);
@@ -71,7 +67,9 @@ export default class GameScene extends Phaser.Scene {
       this,
     );
 
-    this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+    this.physics.add.collider(this.player, this.worldMap.collisionLayerBodies);
+
+    this.cameras.main.setBounds(0, 0, this.worldMap.pixelWidth, this.worldMap.pixelHeight);
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(1.25);
 
