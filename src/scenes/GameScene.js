@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import FiendSpawner from '../systems/FiendSpawner';
 
 const PLAYER_SPEED = 200;
 const WORLD_MULTIPLIER = 2; // Expand world to show camera follow
@@ -8,6 +9,7 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene');
 
     this.player = null;
+    this.fiendSpawner = null;
     this.controls = {
       wasd: null,
       cursors: null,
@@ -35,6 +37,7 @@ export default class GameScene extends Phaser.Scene {
       .setCollideWorldBounds(true);
     this.player.body.setAllowGravity(false);
 
+    this.fiendSpawner = new FiendSpawner(this, this.player);
     this.bindInputs();
 
     this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
@@ -55,7 +58,7 @@ export default class GameScene extends Phaser.Scene {
       .setScrollFactor(0);
   }
 
-  update() {
+  update(time, delta) {
     if (!this.player?.body) return;
 
     const velocity = this.readMovementInput();
@@ -66,6 +69,8 @@ export default class GameScene extends Phaser.Scene {
       // Placeholder attack hook
       console.log('Attack input triggered');
     }
+
+    this.fiendSpawner?.update(time, delta);
   }
 
   createPlayerTexture() {
